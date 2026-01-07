@@ -1,0 +1,24 @@
+INFO:     127.0.0.1:58379 - "GET /ui/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58379 - "GET /api/v2/reports/critical-spots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56266 - "GET /api/v2/reports/hotspots/monthly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56266 - "GET /api/v2/maps/critical-spots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57755 - "POST /predict/severity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57759 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64260 - "GET /ui?id=2c88182b-a043-450b-896c-fa32c1d29bbe&vscodeBrowserReqId=1767640166393 HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:64260 - "GET /ui/?id=2c88182b-a043-450b-896c-fa32c1d29bbe&vscodeBrowserReqId=1767640166393 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64260 - "GET /api/v2/reports/critical-spots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64260 - "GET /api/v2/reports/hotspots/monthly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64260 - "GET /api/v2/maps/critical-spots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53436 - "POST /predict/risk HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:53436 - "POST /predict/severity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53436 - "POST /api/v2/predict/batch-risk HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:53436 - "GET /api/v2/forecast/risk?segment_id=S42&hours=24 HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:53436 - "GET /api/v2/reports/critical-spots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53436 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53442 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53442 - "POST /predict/risk HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:53442 - "POST /predict/severity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65084 - "GET /ui/ HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:65084 - "GET /api/v2/reports/critical-spots HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61589 - "GET /api/v2/reports/hotspots/monthly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61589 - "GET /api/v2/maps/critical-spots HTTP/1.1" 200 OK

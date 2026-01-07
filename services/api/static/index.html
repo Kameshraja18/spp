@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Road Safety Intelligence</title>
+  <!-- AI-Generated Favicon: Road Safety Theme -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='gradient' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%236cf0c2;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%237fc4ff;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='%23070c1a' /%3E%3Cpath d='M20 50 L80 50' stroke='url(%23gradient)' stroke-width='8' stroke-linecap='round' /%3E%3Ccircle cx='40' cy='50' r='6' fill='%23ff5f6d' /%3E%3Ccircle cx='60' cy='50' r='6' fill='%235ce1a9' /%3E%3Cpath d='M30 30 L70 30 L75 70 L25 70 Z' fill='none' stroke='url(%23gradient)' stroke-width='3' /%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg: #070c1a;
+      --panel: rgba(13, 18, 36, 0.9);
+      --panel-alt: rgba(18, 25, 46, 0.94);
+      --text: #e9f0ff;
+      --muted: #9db3d5;
+      --accent: #6cf0c2;
+      --accent-2: #7fc4ff;
+      --border: rgba(255, 255, 255, 0.08);
+      --red: #ff5f6d;
+      --orange: #ff9f43;
+      --yellow: #ffd166;
+      --green: #5ce1a9;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+      background: linear-gradient(180deg, #070c1a 0%, #050812 60%, #04060f 100%);
+      color: var(--text);
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0 0 6px 0; font-size: 32px; font-weight: 700; }
+    .subtitle { margin: 4px 0; color: var(--muted); font-size: 13px; max-width: 800px; line-height: 1.4; }
+    .freshness { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .freshness-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.28); }
+    .panel h2 { margin: 0 0 3px 0; font-size: 16px; font-weight: 700; }
+    .panel-subtitle { margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kpi-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .kpi-value { font-size: 24px; font-weight: 700; line-height: 1; }
+    .kpi-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .kpi-badge.critical { background: rgba(255,95,109,0.2); color: var(--red); }
+    .kpi-badge.high { background: rgba(255,159,67,0.2); color: var(--orange); }
+    .kpi-badge.medium { background: rgba(255,209,102,0.2); color: var(--yellow); }
+    .kpi-badge.low { background: rgba(92,225,169,0.2); color: var(--green); }
+    .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+    .map-container {
+      position: relative;
+      height: 520px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--panel-alt);
+      margin-bottom: 14px;
+    }
+    #leaflet-map { width: 100%; height: 100%; }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 10px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 10px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .color-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    .top-segments {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      overflow-x: auto;
+    }
+    .top-segments h3 { margin: 0 0 2px 0; font-size: 13px; font-weight: 700; }
+    .top-segments-hint { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-style: italic; }
+    .segments-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .segments-table th {
+      background: rgba(255,255,255,0.06);
+      padding: 6px 4px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+    }
+    .segments-table td {
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .segments-table tr:last-child td { border-bottom: none; }
+    .segments-table tr:hover { background: rgba(255,255,255,0.04); }
+    .seg-id { font-weight: 600; color: var(--text); }
+    .seg-road { color: var(--muted); font-size: 10px; }
+    .seg-risk { padding: 2px 6px; border-radius: 999px; font-size: 9px; font-weight: 600; white-space: nowrap; }
+    .seg-risk.CRITICAL { background: rgba(255,95,109,0.2); color: var(--red); }
+    .seg-risk.HIGH { background: rgba(255,159,67,0.2); color: var(--orange); }
+    .seg-risk.MEDIUM { background: rgba(255,209,102,0.2); color: var(--yellow); }
+    .seg-risk.LOW { background: rgba(92,225,169,0.2); color: var(--green); }
+    .seg-level { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+    .seg-view-btn {
+      color: var(--accent-2);
+      cursor: pointer;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-2);
+      background: transparent;
+      transition: all 0.15s;
+      font-family: inherit;
+      font-weight: 600;
+    }
+    .seg-view-btn:hover {
+      background: var(--accent-2);
+      color: #041023;
+    }
+
+    /* Right Panel */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .audience-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .audience-tab {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .audience-tab:hover { background: rgba(255,255,255,0.08); }
+    .audience-tab.active {
+      background: rgba(127,196,255,0.15);
+      color: var(--accent-2);
+      border-color: var(--accent-2);
+    }
+
+    .audience-content {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 580px;
+    }
+    .audience-content h3 { margin: 0 0 8px 0; font-size: 14px; font-weight: 700; }
+    .audience-content p { margin: 6px 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .metric-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 11px;
+    }
+    .metric-item-label { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+    .metric-item-value { font-size: 18px; font-weight: 700; margin-top: 3px; }
+
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .risk-badge.HIGH { background: rgba(255,95,109,0.15); color: var(--red); }
+    .risk-badge.MEDIUM { background: rgba(255,159,67,0.15); color: var(--orange); }
+    .risk-badge.LOW { background: rgba(92,225,169,0.15); color: var(--green); }
+
+    .action-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .action-item strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+    @media (max-width: 1200px) {
+      .container { grid-template-columns: 1fr; }
+      .audience-content { max-height: 400px; }
+    }
+
+    footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    footer strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛣️ Road Safety Intelligence</h1>
+    <div class="subtitle">Live command center for police patrol planning, dispatch coordination, and infrastructure investment. All predictions advisory only.</div>
+    <div class="freshness">
+      <span class="freshness-dot"></span>
+      <span>Models updated: <strong id="model-updated">2026-01-05 22:30</strong> • Data latency: <strong>~5 min</strong></span>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- LEFT COLUMN: Map + KPIs + Top Segments -->
+    <div>
+      <!-- KPI Summary Cards -->
+      <div class="panel">
+        <h2>Risk Overview (Tonight)</h2>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">Critical</div>
+            <div class="kpi-value" id="kpi-critical">0</div>
+            <div class="kpi-badge critical"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--red);"></span>Urgent</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">High</div>
+            <div class="kpi-value" id="kpi-high">0</div>
+            <div class="kpi-badge high"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--orange);"></span>Elevated</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Medium</div>
+            <div class="kpi-value" id="kpi-medium">0</div>
+            <div class="kpi-badge medium"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--yellow);"></span>Watch</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Low</div>
+            <div class="kpi-value" id="kpi-low">0</div>
+            <div class="kpi-badge low"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--green);"></span>Clear</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="panel">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+          <div>
+            <h2 style="margin: 0 0 2px 0;">Segment Risk Map</h2>
+            <p class="panel-subtitle" style="margin: 0;">Click any marker to see details in the right panel</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="map-region" onchange="refreshMap(true)" style="padding: 6px; background: rgba(4,16,35,0.85); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px;">
+              <option value="">US </option>
+              <option value="IND">India</option>
+            </select>
+            <select id="map-state" onchange="refreshMap(true)" style="padding: 6px; background: rgba(4,16,35,0.85); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px;">
+              <option value="">All states</option>
+              <option value="TN">Tamil Nadu (sample)</option>
+            </select>
+            <button onclick="refreshMap()" style="padding: 8px 12px; background: var(--accent-2); color: #041023; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 11px; white-space: nowrap;">↻ Refresh</button>
+          </div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item">
+            <span class="color-dot" style="background: var(--red)"></span>
+            <span>Critical (0.75+)</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-dot" style="background: var(--orange)"></span>
+            <span>High (0.60–0.74)</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-dot" style="background: var(--yellow)"></span>
+            <span>Medium (0.45–0.59)</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-dot" style="background: var(--green)"></span>
+            <span>Low (&lt;0.45)</span>
+          </div>
+        </div>
+
+        <div class="map-container">
+          <div id="leaflet-map"></div>
+        </div>
+      </div>
+
+      <!-- Top 5 Segments -->
+      <div class="panel">
+        <div class="top-segments">
+          <h3>🔴 Top 5 Segments Right Now</h3>
+          <div class="top-segments-hint">Ordered by current risk score, updated on refresh</div>
+          <table class="segments-table">
+            <thead>
+              <tr>
+                <th>Segment</th>
+                <th>Area / Road</th>
+                <th>Risk</th>
+                <th>Level</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="top-5-list"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Audience-Specific Panels -->
+    <div class="right-panel">
+      <!-- Audience Tabs -->
+      <div class="audience-tabs">
+        <div class="audience-tab active" onclick="switchAudience('police', event)">🚓 Police</div>
+        <div class="audience-tab" onclick="switchAudience('map', event)">🗺️ Dispatch</div>
+        <div class="audience-tab" onclick="switchAudience('planner', event)">📊 Planner</div>
+        <div class="audience-tab" onclick="switchAudience('global', event)">🌐 Global</div>
+        <div class="audience-tab" onclick="switchAudience('hotspots', event)">🎯 Hotspots</div>
+        <div class="audience-tab" onclick="switchAudience('routes', event)">🛣️ Routes</div>
+        <div class="audience-tab" onclick="switchAudience('reports', event)">📋 Reports</div>
+        <div class="audience-tab" onclick="switchAudience('alerts', event)">🔔 Alerts</div>
+      </div>
+
+      <!-- Police Panel -->
+      <div class="audience-content" id="police-panel">
+        <h3>Police Patrol Plan</h3>
+        <p>For rapid response units and traffic control deployment.</p>
+        
+        <!-- IMPROVED: Currently selected segment label -->
+        <div id="selected-segment-label" style="margin-bottom: 12px; padding: 8px; background: rgba(127,196,255,0.1); border-radius: 6px; border-left: 2px solid var(--accent-2); font-size: 11px; color: var(--accent-2); display: none;"></div>
+
+        <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; font-weight: 600;">Response Actions by Risk Band</div>
+          
+          <div style="margin-bottom: 10px;">
+            <div style="display: inline-block; padding: 2px 8px; background: rgba(255,95,109,0.2); color: var(--red); font-size: 9px; font-weight: 600; border-radius: 4px; margin-bottom: 6px;">🔴 CRITICAL (0.75+)</div>
+            <div style="font-size: 11px; color: var(--muted); line-height: 1.6; margin-left: 4px;">
+              • Pre-position units near segment<br/>
+              • Activate fog beacons / VMS<br/>
+              • Continuous monitoring<br/>
+              • Notify dispatch & EMT
+            </div>
+          </div>
+
+          <div>
+            <div style="display: inline-block; padding: 2px 8px; background: rgba(255,159,67,0.2); color: var(--orange); font-size: 9px; font-weight: 600; border-radius: 4px; margin-bottom: 6px;">🟠 HIGH (0.60–0.74)</div>
+            <div style="font-size: 11px; color: var(--muted); line-height: 1.6; margin-left: 4px;">
+              • Deploy standard patrol<br/>
+              • Enable dynamic signage<br/>
+              • Brief dispatch on patterns<br/>
+              • Prepare incident response
+            </div>
+          </div>
+        </div>
+
+        <div id="police-spot-detail" style="margin-top: 12px; display: none;">
+          <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+            <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">
+              <strong style="color: var(--text); display: block; margin-bottom: 4px;">Selected Segment</strong>
+              <span id="police-spot-id" style="font-weight: 600; color: var(--text); font-size: 13px;"></span>
+            </div>
+            <div id="police-spot-reasons" style="font-size: 12px; color: var(--muted); line-height: 1.5;"></div>
+          </div>
+        </div>
+
+        <!-- NEW: Severity Predictor -->
+        <div style="margin-top: 14px; padding: 10px; background: rgba(255,95,109,0.1); border-radius: 8px; border: 1px solid rgba(255,95,109,0.3);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--red); margin-bottom: 8px; font-weight: 600;">🚨 Incident Severity Predictor</div>
+          <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px;">If accident occurs, predict injury severity & response needs:</div>
+          <input type="text" id="incident-segment" placeholder="Segment ID (e.g., S1)" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <select id="incident-weather" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+            <option value="">Select weather</option>
+            <option value="clear">Clear</option>
+            <option value="rain">Rain</option>
+            <option value="fog">Fog</option>
+            <option value="snow">Snow</option>
+          </select>
+          <select id="incident-light" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+            <option value="">Select light condition</option>
+            <option value="daylight">Daylight</option>
+            <option value="dusk">Dusk</option>
+            <option value="dark">Dark</option>
+          </select>
+          <button onclick="predictSeverity()" style="width: 100%; padding: 6px; background: var(--red); color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px;">🔴 Predict Severity</button>
+          <div id="severity-result" style="margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; display: none; font-size: 10px; color: var(--muted);"></div>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <button onclick="downloadFile('/api/v2/reports/critical-spots/export')" style="width: 100%; padding: 9px; background: var(--accent-2); color: #041023; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 11px;">⬇️ Download CSV</button>
+        </div>
+      </div>
+
+      <!-- Dispatch Panel -->
+      <div class="audience-content" id="dispatch-panel" style="display: none;">
+        <h3>Dispatch Coordination</h3>
+        <p>For map operators and incident routing.</p>
+
+        <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600;">Real-time Routing</div>
+          <div class="action-item" style="margin-bottom: 6px;">
+            <strong>🗺️ Click any marker</strong> to see exact coordinates, risk drivers, and recommended reroutes
+          </div>
+          <div class="action-item" style="margin-bottom: 6px;">
+            <strong>🚨 Color coding</strong> shows high-priority segments for reroutes and incident staging
+          </div>
+          <div class="action-item">
+            <strong>📋 ETA/Units</strong> coordinates provided below for live unit dispatch
+          </div>
+        </div>
+
+        <div style="margin-top: 12; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600;">⏰ 24-Hour Risk Forecast</div>
+          <input type="text" id="forecast-segment" placeholder="Enter Segment ID (e.g., S1)" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <button onclick="generateForecast()" style="width: 100%; padding: 6px; background: var(--accent-2); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px; margin-bottom: 8px;">📊 Generate 24h Forecast</button>
+          <canvas id="forecast-canvas" style="width: 100%; height: 150px; display: none; margin-top: 8px;"></canvas>
+          <div id="forecast-result" style="font-size: 10px; color: var(--muted); line-height: 1.5;"></div>
+        </div>
+
+        <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600;">Dispatch Tips</div>
+          <div style="font-size: 11px; color: var(--muted); line-height: 1.6;">
+            • <strong>Red markers:</strong> Stage units within 5–10 km<br/>
+            • <strong>Orange markers:</strong> Pre-alert units, standby mode<br/>
+            • <strong>Yellow/Green:</strong> Normal patrol routing
+          </div>
+        </div>
+
+        <div id="dispatch-spot-detail" style="margin-top: 12px; display: none;">
+          <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; font-weight: 600;">Segment Coordinates</div>
+            <div id="dispatch-coords" style="font-size: 13px; color: var(--text); font-family: monospace; margin-bottom: 8px;"></div>
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; font-weight: 600;">Risk Factors</div>
+            <div id="dispatch-factors" style="font-size: 12px; color: var(--muted); line-height: 1.5;"></div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <button onclick="downloadFile('/api/v2/maps/critical-spots')" style="width: 100%; padding: 9px; background: var(--accent-2); color: #041023; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 11px;">⬇️ Download GeoJSON</button>
+        </div>
+      </div>
+
+      <!-- Planner Panel -->
+      <div class="audience-content" id="planner-panel" style="display: none;">
+        <h3>Infrastructure Planning</h3>
+        <p>Monthly trend analysis and investment prioritization.</p>
+
+        <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600;">Intervention Packages</div>
+          
+          <div class="action-item" style="margin-bottom: 6px;">
+            <strong>☀️ Weather Response Package</strong>
+            Improve drainage, upgrade LED lighting, install advanced markings, drainage improvements
+          </div>
+          
+          <div class="action-item" style="margin-bottom: 6px;">
+            <strong>🚗 Work Zone Safety Package</strong>
+            Deploy rumble strips, install median barriers, add retroreflective sheeting, lane discipline
+          </div>
+          
+          <div class="action-item">
+            <strong>🚸 High-Traffic Intersection Package</strong>
+            Signal timing optimization, pedestrian refuge islands, protected turn movements, queue detection
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600;">📋 Generate Batch Report</div>
+          <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px;">Generate risk predictions for all segments at once:</div>
+          <input type="number" id="batch-count" placeholder="Number of segments (1-50)" min="1" max="50" value="10" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <button onclick="generateBatchReport()" style="width: 100%; padding: 6px; background: var(--accent); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px; margin-bottom: 8px;">⚡ Run Batch Predictions</button>
+          <div id="batch-result" style="font-size: 10px; color: var(--muted); line-height: 1.5; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+
+        <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600;">Recurring Hotspots (This Month)</div>
+          <div style="font-size: 11px; color: var(--muted); line-height: 1.6;">
+            View the table in "Top 5 Segments" and download the full CSV report for all segments' monthly crash stats, patterns, and recommended actions.
+          </div>
+        </div>
+
+        <div id="planner-spot-detail" style="margin-top: 12px; display: none;">
+          <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; font-weight: 600;">Monthly Stats</div>
+            <div class="metric-grid">
+              <div class="metric-item">
+                <div class="metric-item-label">Total Incidents</div>
+                <div class="metric-item-value" id="planner-incidents">—</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-item-label">Serious/Fatal</div>
+                <div class="metric-item-value" id="planner-serious">—</div>
+              </div>
+            </div>
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; font-weight: 600; margin-top: 8px;">Patterns</div>
+            <div id="planner-patterns" style="font-size: 12px; color: var(--muted); line-height: 1.5;"></div>
+          </div>
+        </div>
+
+        <!-- IMPROVED: Planner export options -->
+        <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button onclick="exportPlannerReport()" style="padding: 9px; background: var(--accent-2); color: #041023; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 11px;">⬇️ Download Full Report</button>
+          <button onclick="exportHistorical()" style="padding: 9px; background: var(--orange); color: #041023; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 11px;">📅 Export Last 30 Days</button>
+        </div>
+      </div>
+
+      <!-- Global Overview Panel -->
+      <div class="audience-content" id="global-panel" style="display: none;">
+        <h3>🌐 Global Overview (Demo)</h3>
+        <p>Country-level indicators (demo placeholders). Connect to WHO/observatory feeds for live data.</p>
+        <div style="margin-top: 12px; margin-bottom: 10px;">
+          <select id="global-country" onchange="loadStateOptions()" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.12); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11px; margin-bottom: 6px;">
+            <option value="">Select country</option>
+            <option value="IND">India</option>
+            <option value="USA">United States</option>
+            <option value="CAN">Canada</option>
+            <option value="DEU">Germany</option>
+            <option value="FRA">France</option>
+            <option value="ESP">Spain</option>
+            <option value="ITA">Italy</option>
+            <option value="NLD">Netherlands</option>
+            <option value="SWE">Sweden</option>
+            <option value="BRA">Brazil</option>
+          </select>
+          <select id="global-state" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.12); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11px; margin-bottom: 6px;">
+            <option value="">All states/provinces</option>
+          </select>
+          <button onclick="loadGlobalIndicators()" style="width: 100%; padding: 6px; background: var(--accent); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px; margin-bottom: 6px;">Load Country Data</button>
+          <button onclick="loadTrafficRules()" style="width: 100%; padding: 6px; background: var(--accent-2); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px;">Load Traffic Rules</button>
+        </div>
+        <div id="global-indicators-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 320px; overflow-y: auto; padding: 8px; background: rgba(255,255,255,0.04); border-radius: 6px; border: 1px solid var(--border);">
+          Select a country to view indicators.
+        </div>
+        <div id="traffic-rules-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 320px; overflow-y: auto; padding: 8px; background: rgba(255,255,255,0.04); border-radius: 6px; border: 1px solid var(--border); margin-top: 10px;">
+          Load traffic rules by country/state.
+        </div>
+      </div>
+
+      <!-- 1. Hotspot & Patrol Planning Service Panel -->
+      <div class="audience-content" id="hotspots-panel" style="display: none;">
+        <h3>🎯 Hotspot & Patrol Planning</h3>
+        <p>Identify high-priority enforcement zones for today.</p>
+        <div style="margin-top: 12px; margin-bottom: 10px;">
+          <input type="text" id="hotspot-date" placeholder="Date (2026-01-06)" value="2026-01-06" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <input type="text" id="hotspot-window" placeholder="Time window (18:00-23:00)" value="18:00-23:00" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <button onclick="fetchHotspots()" style="width: 100%; padding: 6px; background: var(--accent); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px;">Get Hotspots</button>
+        </div>
+        <div id="hotspots-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 300px; overflow-y: auto;"></div>
+      </div>
+
+      <!-- 2. Route Safety & Trip Planning Service Panel -->
+      <div class="audience-content" id="routes-panel" style="display: none;">
+        <h3>🛣️ Route Safety & Trip Planning</h3>
+        <p>Evaluate route safety and find the safest path.</p>
+        <div style="margin-top: 12px; margin-bottom: 10px;">
+          <input type="text" id="route-origin" placeholder="Origin (e.g., Hosur)" value="Hosur" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <input type="text" id="route-destination" placeholder="Destination (e.g., Bangalore)" value="Bangalore" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <input type="text" id="route-time" placeholder="Departure time (20:00)" value="20:00" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <button onclick="evaluateRoutes()" style="width: 100%; padding: 6px; background: var(--accent-2); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px;">Evaluate Routes</button>
+        </div>
+        <div id="routes-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 300px; overflow-y: auto;"></div>
+      </div>
+
+      <!-- 3. Monthly Hotspot & Policy Report Service Panel -->
+      <div class="audience-content" id="reports-panel" style="display: none;">
+        <h3>📋 Monthly Hotspot & Policy Report</h3>
+        <p>Comprehensive planning report with intervention recommendations.</p>
+        <div style="margin-top: 12px; margin-bottom: 10px;">
+          <input type="text" id="report-month" placeholder="Month (2026-01)" value="2026-01" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <input type="text" id="report-region" placeholder="Region (optional)" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <button onclick="fetchMonthlyReport()" style="width: 100%; padding: 6px; background: var(--orange); color: #041023; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px;">Generate Report</button>
+        </div>
+        <div id="reports-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 350px; overflow-y: auto;"></div>
+      </div>
+
+      <!-- 4. Alert & Notification Service Panel -->
+      <div class="audience-content" id="alerts-panel" style="display: none;">
+        <h3>🔔 Alert & Notification Service</h3>
+        <p>Subscribe to risk alerts for your region.</p>
+        <div style="margin-top: 12px; margin-bottom: 10px;">
+          <input type="text" id="alert-location" placeholder="Location (e.g., Hosur)" value="Hosur" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <input type="text" id="alert-radius" placeholder="Radius (km)" value="20" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+          <select id="alert-threshold" style="width: 100%; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; margin-bottom: 6px;">
+            <option value="HIGH">Alert on HIGH risk</option>
+            <option value="MEDIUM">Alert on MEDIUM+ risk</option>
+            <option value="LOW">Alert on any risk</option>
+          </select>
+          <button onclick="subscribeAlerts()" style="width: 100%; padding: 6px; background: var(--red); color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 11px;">Subscribe</button>
+        </div>
+        <div id="alerts-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 300px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <strong>⚠️ Safety Statement:</strong> Advisory predictions only. Not a replacement for official road safety assessments. Police verify against current conditions and protocols. Planners conduct full feasibility studies. All actions must comply with local regulations and engineering standards.
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* Improve dropdown contrast in Global tab */
+    #global-country, #global-state {
+      background: #1a2333 !important;
+      color: #ffffff !important;
+      border: 1px solid #7aa2ff !important;
+      outline: none !important;
+      font-weight: 600;
+    }
+    #global-country:focus, #global-state:focus {
+      border-color: #9ec5ff !important;
+      box-shadow: 0 0 0 2px rgba(122,162,255,0.3);
+    }
+    #global-country option, #global-state option {
+      background: #0c121d !important;
+      color: #ffffff !important;
+      font-weight: 600;
+    }
+  </style>
+  <script>
+    const colors = { red: '#ff5f6d', orange: '#ff9f43', yellow: '#ffd166', green: '#5ce1a9' };
+    let map, markers = [], allSegments = [];
+
+    function getRiskLevel(score) {
+      if (score >= 0.75) return { label: 'CRITICAL', color: 'red', band: '0.75+' };
+      if (score >= 0.60) return { label: 'HIGH', color: 'orange', band: '0.60–0.74' };
+      if (score >= 0.45) return { label: 'MEDIUM', color: 'yellow', band: '0.45–0.59' };
+      return { label: 'LOW', color: 'green', band: '<0.45' };
+    }
+
+    async function fetchJson(path) {
+      try {
+        const res = await fetch(path);
+        return res.ok ? await res.json() : {};
+      } catch (e) {
+        console.error('Fetch error:', e);
+        return {};
+      }
+    }
+
+    function downloadFile(path) {
+      const link = document.createElement('a');
+      link.href = path;
+      link.click();
+    }
+
+    function switchAudience(audience, e) {
+      document.querySelectorAll('.audience-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.audience-content').forEach(c => c.style.display = 'none');
+      e.target.classList.add('active');
+
+      const panelMap = {
+        police: 'police-panel',
+        map: 'dispatch-panel',
+        planner: 'planner-panel',
+        global: 'global-panel',
+        hotspots: 'hotspots-panel',
+        routes: 'routes-panel',
+        reports: 'reports-panel',
+        alerts: 'alerts-panel'
+      };
+
+      const panelId = panelMap[audience] || 'police-panel';
+      document.getElementById(panelId).style.display = 'block';
+
+      if (audience === 'planner') onPlannerModeActivated();
+      if (audience === 'map') onDispatchModeActivated();
+    }
+    
+    window.currentSelectedSegment = null;
+    
+    function onDispatchModeActivated() {
+      console.log('Dispatch mode activated - show real-time routing');
+    }
+    
+    function onPlannerModeActivated() {
+      console.log('Planner mode activated - prepare aggregate analytics');
+    }
+
+    function updateKPIs() {
+      const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+      allSegments.forEach(seg => {
+        const level = getRiskLevel(seg.risk_score);
+        if (level.label === 'CRITICAL') counts.critical++;
+        else if (level.label === 'HIGH') counts.high++;
+        else if (level.label === 'MEDIUM') counts.medium++;
+        else counts.low++;
+      });
+      document.getElementById('kpi-critical').textContent = counts.critical;
+      document.getElementById('kpi-high').textContent = counts.high;
+      document.getElementById('kpi-medium').textContent = counts.medium;
+      document.getElementById('kpi-low').textContent = counts.low;
+    }
+
+    function renderTop5() {
+      const top5 = allSegments.slice(0, 5);
+      const html = top5.map((seg, idx) => {
+        const level = getRiskLevel(seg.risk_score);
+        const roadDisplay = seg.road_name && seg.road_name !== 'undefined' ? seg.road_name : 'Urban area';
+        const kmDisplay = seg.kilometers && seg.kilometers !== 'undefined' ? seg.kilometers : '—';
+        return `
+          <tr>
+            <td class="seg-id">${seg.segment_id}</td>
+            <td>
+              <div class="seg-road" style="font-weight: 600; color: var(--text);">${roadDisplay}</div>
+              <div class="seg-road">${kmDisplay}</div>
+            </td>
+            <td><span class="seg-risk ${level.label}">${(seg.risk_score * 100).toFixed(0)}%</span></td>
+            <td class="seg-level">${level.label}</td>
+            <td><button class="seg-view-btn" onclick="focusSegment('${seg.segment_id}')">View →</button></td>
+          </tr>
+        `;
+      }).join('');
+      document.getElementById('top-5-list').innerHTML = html || '<tr><td colspan="5" style="padding: 10px; text-align: center; color: var(--muted);">No segments loaded</td></tr>';
+    }
+
+    async function initMap() {
+      const container = document.getElementById('leaflet-map');
+      if (map) return;
+
+      map = L.map(container).setView([37.7749, -122.4194], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(map);
+
+      await refreshMap();
+    }
+
+    async function refreshMap(keepView = false) {
+      if (!map) await initMap();
+
+      const region = document.getElementById('map-region')?.value || '';
+      const state = document.getElementById('map-state')?.value || '';
+      let url = window.location.origin + '/api/v2/maps/critical-spots';
+      const params = [];
+      if (region) params.push(`country=${region}`);
+      if (state) params.push(`state=${state}`);
+      if (params.length) url += '?' + params.join('&');
+
+      const data = await fetchJson(url);
+      allSegments = data.segments || [];
+
+      markers.forEach(m => m.remove());
+      markers = [];
+
+      updateKPIs();
+      renderTop5();
+
+      allSegments.forEach(seg => {
+        const level = getRiskLevel(seg.risk_score);
+        const marker = L.circleMarker([seg.latitude, seg.longitude], {
+          radius: 10,
+          color: colors[level.color],
+          fillColor: colors[level.color],
+          fillOpacity: 0.8,
+          weight: 2,
+        }).addTo(map);
+
+        marker.on('click', () => showSegmentDetail(seg));
+        marker.bindTooltip(`${seg.segment_id} • ${(seg.risk_score * 100).toFixed(0)}%`);
+        markers.push(marker);
+      });
+
+      if (!keepView && allSegments.length > 0) {
+        map.setView([allSegments[0].latitude, allSegments[0].longitude], 8);
+      }
+    }
+
+    function focusSegment(segmentId) {
+      const seg = allSegments.find(s => s.segment_id === segmentId);
+      if (seg) {
+        window.currentSelectedSegment = seg;
+        map.setView([seg.latitude, seg.longitude], 13);
+        showSegmentDetail(seg);
+        updateSelectionLabel();
+        // Flash the marker
+        const marker = markers.find(m => m.getLatLng().lat === seg.latitude);
+        if (marker) marker.openPopup();
+      }
+    }
+    
+    function updateSelectionLabel() {
+      const seg = window.currentSelectedSegment;
+      if (seg) {
+        const roadDisplay = seg.road_name && seg.road_name !== 'undefined' ? seg.road_name : 'Urban area';
+        document.getElementById('selected-segment-label').innerHTML = `<strong style="color: var(--accent-2);">📍 Currently selected:</strong> <strong>${seg.segment_id}</strong> – ${roadDisplay}`;
+      } else {
+        document.getElementById('selected-segment-label').innerHTML = '';
+      }
+    }
+    
+    function validateSegmentId(segmentId) {
+      return segmentId && /^[A-Z0-9]+$/.test(segmentId);
+    }
+    
+    function showError(elementId, message) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.style.display = 'block';
+        el.style.color = 'var(--red)';
+        el.textContent = '❌ ' + message;
+      }
+    }
+    
+    function clearError(elementId) {
+      const el = document.getElementById(elementId);
+      if (el) el.style.display = 'none';
+    }
+
+    // ===== IMPROVED: Severity Predictor with Validation =====
+    async function predictSeverity() {
+      const segment = document.getElementById('incident-segment').value.trim();
+      const weather = document.getElementById('incident-weather').value;
+      const light = document.getElementById('incident-light').value;
+      const resultDiv = document.getElementById('severity-result');
+      
+      // Validate inputs
+      if (!segment) {
+        showError('severity-result', 'Segment ID required');
+        return;
+      }
+      if (!validateSegmentId(segment)) {
+        showError('severity-result', 'Invalid segment ID format (use alphanumeric)');
+        return;
+      }
+      if (!weather) {
+        showError('severity-result', 'Weather condition required');
+        return;
+      }
+      if (!light) {
+        showError('severity-result', 'Light condition required');
+        return;
+      }
+      
+      clearError('severity-result');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '⏳ Predicting severity...';
+      
+      try {
+        const res = await fetch('/predict/severity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            road_segment_id: segment,
+            timestamp: new Date().toISOString(),
+            weather: weather,
+            light_condition: light,
+            road_type: 'highway',
+            surface_condition: weather === 'rain' ? 'wet' : 'dry',
+            avg_speed_current: 55,
+            congestion_index_current: 0.6,
+            lstm_risk_score: 0.75,
+            historical_accident_rate_segment: 0.15
+          })
+        });
+        
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        
+        const responseMap = {
+          0: { label: 'No Injury', emoji: '✅', dispatch: 'Standard patrol response' },
+          1: { label: 'Minor Injuries', emoji: '🟡', dispatch: 'Standard ambulance' },
+          2: { label: 'Serious Injuries Likely', emoji: '🔴', dispatch: '2 ambulances + traffic diversion' },
+          3: { label: 'Fatal Injuries Risk', emoji: '⚫', dispatch: 'Full emergency response + air support' }
+        };
+        
+        const response = responseMap[data.severity_class] || responseMap[0];
+        const probabilities = data.probabilities || {};
+        const html = `
+          <div style="padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.05); border-left: 3px solid var(--red);">
+            <div style="font-size: 12px; color: var(--text); margin-bottom: 6px;">
+              <strong>${response.emoji} Expected Severity: ${response.label.toUpperCase()}</strong>
+            </div>
+            <div style="font-size: 11px; line-height: 1.8; color: var(--text);">
+              <div><strong>Recommended Response:</strong> ${response.dispatch}</div>
+              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);">
+                <strong>Probabilities:</strong>
+                <div style="margin-top: 4px; font-size: 10px; color: var(--muted);">
+                  ✓ No Injury: <strong>${(probabilities.no_injury * 100).toFixed(0)}%</strong><br/>
+                  • Minor: <strong>${(probabilities.minor * 100).toFixed(0)}%</strong><br/>
+                  • Serious: <strong>${(probabilities.serious * 100).toFixed(0)}%</strong><br/>
+                  • Fatal: <strong>${(probabilities.fatal * 100).toFixed(0)}%</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        showError('severity-result', 'Prediction failed: ' + e.message);
+      }
+    }
+
+    // ===== NEW: Risk Forecast =====
+    async function generateForecast() {
+      const segment = document.getElementById('forecast-segment').value;
+      if (!segment) {
+        alert('Enter a segment ID');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v2/forecast/risk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            road_segment_id: segment,
+            forecast_hours: 24
+          })
+        });
+
+        const data = await res.json();
+        const resultDiv = document.getElementById('forecast-result');
+        
+        let html = '<strong>Next 24 Hours:</strong><br/>';
+        let peakRisk = 0;
+        let peakTime = '';
+
+        data.forecast.forEach((point, idx) => {
+          const time = new Date(point.timestamp).getHours();
+          const risk = (point.predicted_risk * 100).toFixed(0);
+          const bar = '█'.repeat(Math.ceil(point.predicted_risk * 10));
+          
+          html += `${time.toString().padStart(2, '0')}:00 ${bar} ${risk}%<br/>`;
+          
+          if (point.predicted_risk > peakRisk) {
+            peakRisk = point.predicted_risk;
+            peakTime = time;
+          }
+        });
+
+        html += `<br/><strong>⚠️ Peak Risk:</strong> ${peakTime}:00 (${(peakRisk * 100).toFixed(0)}%)<br/>`;
+        html += `<strong>📋 Recommendation:</strong> Deploy extra patrols between ${Math.max(0, peakTime - 1)}:00-${Math.min(23, peakTime + 2)}:00`;
+
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        alert('Error generating forecast: ' + e.message);
+      }
+    }
+
+    // ===== NEW: Batch Report =====
+    async function generateBatchReport() {
+      const count = parseInt(document.getElementById('batch-count').value) || 10;
+      
+      // Generate mock segment data for batch
+      const predictions = [];
+      for (let i = 1; i <= count; i++) {
+        predictions.push({
+          road_segment_id: `S${i}`,
+          recent_sequence: [{
+            timestamp: new Date().toISOString(),
+            avg_speed: 50 + Math.random() * 20,
+            flow: 100 + Math.random() * 50,
+            occupancy: 0.5 + Math.random() * 0.3,
+            congestion_index: 0.5 + Math.random() * 0.3,
+            rain_intensity: Math.random() * 0.5
+          }]
+        });
+      }
+
+      try {
+        const res = await fetch('/api/v2/predict/batch-risk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ predictions: predictions })
+        });
+
+        const data = await res.json();
+        const resultDiv = document.getElementById('batch-result');
+        
+        let html = `<strong>✅ Batch Report (${data.results.length} segments)</strong><br/>`;
+        html += `Processing time: ${data.processing_time_ms.toFixed(0)}ms<br/><br/>`;
+
+        const critical = data.results.filter(r => r.risk_score >= 0.75).length;
+        const high = data.results.filter(r => r.risk_score >= 0.60 && r.risk_score < 0.75).length;
+        const medium = data.results.filter(r => r.risk_score >= 0.45 && r.risk_score < 0.60).length;
+        const low = data.results.filter(r => r.risk_score < 0.45).length;
+
+        html += `<strong>Summary:</strong><br/>`;
+        html += `🔴 CRITICAL (0.75+): ${critical}<br/>`;
+        html += `🟠 HIGH (0.60-0.74): ${high}<br/>`;
+        html += `🟡 MEDIUM (0.45-0.59): ${medium}<br/>`;
+        html += `🟢 LOW (<0.45): ${low}<br/><br/>`;
+
+        html += `<strong>Top 5 Highest Risk:</strong><br/>`;
+        data.results.sort((a, b) => b.risk_score - a.risk_score).slice(0, 5).forEach(r => {
+          html += `${r.road_segment_id}: ${(r.risk_score * 100).toFixed(0)}% (${r.risk_label})<br/>`;
+        });
+
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        alert('Error generating batch report: ' + e.message);
+      }
+    }
+
+    function showSegmentDetail(seg) {
+      const level = getRiskLevel(seg.risk_score);
+
+      // Police panel
+      const policeDetail = document.getElementById('police-spot-detail');
+      policeDetail.style.display = 'block';
+      document.getElementById('police-spot-id').innerHTML = `${seg.segment_id} • ${seg.road_name} (${seg.kilometers}) <span class="risk-badge ${level.label}"><span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--${level.color}); margin-right: 4px;"></span>${(seg.risk_score * 100).toFixed(0)}%</span>`;
+      document.getElementById('police-spot-reasons').innerHTML = (seg.reasons || []).map(r => `<div>• ${r}</div>`).join('');
+
+      // Dispatch panel - IMPROVED: Show unit locations, ETAs, and suggested routes
+      const dispatchDetail = document.getElementById('dispatch-spot-detail');
+      dispatchDetail.style.display = 'block';
+      document.getElementById('dispatch-coords').textContent = `${seg.latitude.toFixed(4)}, ${seg.longitude.toFixed(4)}`;
+      
+      const suggestedRoutes = [
+        { name: 'Route A (Direct)', time: '8 min', distance: '12 km' },
+        { name: 'Route B (Safe)', time: '12 min', distance: '15 km' },
+        { name: 'Route C (Local)', time: '15 min', distance: '14 km' }
+      ];
+      
+      let dispatchHtml = (seg.recommended_actions || []).map(a => `<div>→ ${a}</div>`).join('');
+      dispatchHtml += `<div style="margin-top: 10px; padding: 8px; background: rgba(127,196,255,0.1); border-radius: 4px; border-left: 2px solid var(--accent-2);">
+        <strong style="font-size: 11px; color: var(--accent-2);">Suggested Routes & ETAs:</strong>
+        ${suggestedRoutes.map((r, i) => `<div style="margin: 4px 0; font-size: 10px;"><strong>Unit ${String.fromCharCode(65+i)}:</strong> ${r.name} – ${r.time} (${r.distance})</div>`).join('')}
+      </div>`;
+      
+      document.getElementById('dispatch-factors').innerHTML = dispatchHtml;
+
+      // Planner panel - IMPROVED: Show detailed monthly stats and infrastructure actions
+      const plannerDetail = document.getElementById('planner-spot-detail');
+      plannerDetail.style.display = 'block';
+      const hotspot = window.hotspots?.find(h => h.segment_id === seg.segment_id);
+      if (hotspot) {
+        document.getElementById('planner-incidents').textContent = hotspot.total_incidents || '0';
+        document.getElementById('planner-serious').textContent = (hotspot.serious_incidents || 0) + '/' + (hotspot.fatal_incidents || 0);
+        
+        let plannerHtml = (hotspot.patterns || []).map(p => `<div>• ${p}</div>`).join('');
+        
+        // Add infrastructure actions
+        const recommendedActions = hotspot.long_term_actions || [];
+        if (recommendedActions.length > 0) {
+          plannerHtml += `<div style="margin-top: 8px; padding: 8px; background: rgba(255,209,102,0.1); border-radius: 4px; border-left: 2px solid var(--yellow);">
+            <strong style="color: var(--yellow); font-size: 11px;">Infrastructure Actions:</strong>
+            <div style="font-size: 10px; margin-top: 4px;">
+              ${recommendedActions.slice(0, 3).map(a => `<div style="margin: 2px 0;">✓ ${a}</div>`).join('')}
+            </div>
+          </div>`;
+        }
+        
+        document.getElementById('planner-patterns').innerHTML = plannerHtml;
+      }
+    }
+    
+    // Planner-specific aggregation and export functions
+    function aggregateByTimeframe(timeframe = 'month') {
+      const aggregated = {};
+      (window.hotspots || []).forEach(h => {
+        const key = timeframe === 'day' ? 'Today' : timeframe === 'week' ? 'This Week' : 'This Month';
+        if (!aggregated[key]) aggregated[key] = {incidents: 0, serious: 0, fatal: 0};
+        aggregated[key].incidents += h.total_incidents || 0;
+        aggregated[key].serious += h.serious_incidents || 0;
+        aggregated[key].fatal += h.fatal_incidents || 0;
+      });
+      return aggregated;
+    }
+    
+    function exportPlannerReport() {
+      const csv = 'Segment ID,Road Name,KM,Monthly Risk,Total Incidents,Serious,Fatal,Peak Hours,Patterns,Recommended Actions\\n';
+      const rows = (window.hotspots || []).map(h => 
+        `${h.segment_id},${h.road_name},${h.kilometers},${(h.monthly_risk * 100).toFixed(0)}%,${h.total_incidents},${h.serious_incidents},${h.fatal_incidents},"${h.peak_hours.join('; ')}","${h.patterns.join('; ')}","${(h.long_term_actions || []).join('; ')}"`
+      ).join('\\n');
+      
+      const link = document.createElement('a');
+      link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv + rows);
+      link.download = `hotspot-report-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+    
+    function exportHistorical() {
+      const csv = 'Date,Segment ID,Risk Score,Incident Type\\n';
+      const today = new Date();
+      let rows = '';
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        (window.hotspots || []).slice(0, 5).forEach(h => {
+          rows += `${date.toISOString().split('T')[0]},${h.segment_id},${(h.monthly_risk).toFixed(2)},accident\\n`;
+        });
+      }
+      
+      const link = document.createElement('a');
+      link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv + rows);
+      link.download = `history-30days-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    async function load() {
+      try {
+        const [crit, monthly] = await Promise.all([
+          fetchJson(window.location.origin + '/api/v2/reports/critical-spots'),
+          fetchJson(window.location.origin + '/api/v2/reports/hotspots/monthly'),
+        ]);
+
+        window.hotspots = monthly.hotspots || [];
+        document.getElementById('model-updated').textContent = new Date().toLocaleString();
+
+        await initMap();
+      } catch (e) {
+        console.error('Load error:', e);
+      }
+    }
+
+    load();
+
+    // ===== NEW SERVICE FUNCTIONS =====
+
+    // 1. Hotspot & Patrol Planning Service
+    async function fetchHotspots() {
+      const date = document.getElementById('hotspot-date').value;
+      const window = document.getElementById('hotspot-window').value;
+      const resultDiv = document.getElementById('hotspots-result');
+      
+      resultDiv.innerHTML = '⏳ Fetching hotspots...';
+      
+      try {
+        const res = await fetch('/api/v2/hotspots/today', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, time_window: window })
+        });
+        
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        
+        let html = `<div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 6px;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: var(--accent);">Top Hotspots for ${window}</div>`;
+        
+        data.hotspots.forEach((spot, idx) => {
+          const riskColor = spot.risk_level === 'HIGH' ? 'var(--red)' : spot.risk_level === 'MEDIUM' ? 'var(--orange)' : 'var(--green)';
+          html += `<div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-left: 3px solid ${riskColor}; border-radius: 4px;">
+            <div style="color: ${riskColor}; font-weight: 600;">${idx+1}. ${spot.segment_id} - ${spot.road_name}</div>
+            <div style="font-size: 10px; color: var(--muted); margin: 4px 0;">${spot.reason_summary}</div>
+            <div style="font-size: 10px; color: var(--accent-2); font-weight: 500;">📍 ${spot.suggested_enforcement}</div>
+          </div>`;
+        });
+        
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    // 2. Route Safety & Trip Planning Service
+    async function evaluateRoutes() {
+      const origin = document.getElementById('route-origin').value;
+      const destination = document.getElementById('route-destination').value;
+      const time = document.getElementById('route-time').value;
+      const resultDiv = document.getElementById('routes-result');
+      
+      if (!origin || !destination || !time) {
+        resultDiv.innerHTML = '<div style="color: var(--red);">❌ All fields required</div>';
+        return;
+      }
+      
+      resultDiv.innerHTML = '⏳ Evaluating routes...';
+      
+      try {
+        const res = await fetch('/api/v2/route/safety-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ origin, destination, departure_time: time })
+        });
+        
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        
+        let html = `<div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 6px;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: var(--accent);">${origin} → ${destination} at ${time}</div>`;
+        
+        data.routes.forEach((route, idx) => {
+          const scoreColor = route.safety_label === 'SAFE' ? 'var(--green)' : route.safety_label === 'MODERATE' ? 'var(--orange)' : 'var(--red)';
+          html += `<div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <div style="font-weight: 600;">${route.name}</div>
+              <div style="color: ${scoreColor}; font-weight: 700; font-size: 12px;">${route.safety_score}/100 ${route.safety_label}</div>
+            </div>
+            <div style="font-size: 10px; color: var(--muted); margin: 4px 0;">
+              ⏱️ ${route.estimated_time_min} min | 📏 ${route.distance_km} km | Risk: ${route.highest_risk_segment}
+            </div>
+            <div style="font-size: 10px; color: var(--accent-2); font-style: italic;">💡 ${route.advice}</div>
+          </div>`;
+        });
+        
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    // 3. Monthly Hotspot & Policy Report Service
+    async function fetchMonthlyReport() {
+      const month = document.getElementById('report-month').value;
+      const region = document.getElementById('report-region').value;
+      const resultDiv = document.getElementById('reports-result');
+      
+      if (!month) {
+        resultDiv.innerHTML = '<div style="color: var(--red);">❌ Month required (YYYY-MM format)</div>';
+        return;
+      }
+      
+      resultDiv.innerHTML = '⏳ Generating report...';
+      
+      try {
+        const res = await fetch('/api/v2/reports/hotspots/monthly', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month, region: region || null })
+        });
+        
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        
+        let html = `<div style="padding: 10px; background: rgba(255,255,255,0.04); border-radius: 6px;">
+          <div style="font-weight: 600; margin-bottom: 6px; color: var(--accent);">📊 ${data.month} Report${region ? ' - ' + region : ''}</div>
+          <div style="font-size: 10px; color: var(--muted); margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+            Total Crashes: <strong>${data.total_crashes_reported}</strong> | 
+            Serious: <strong>${data.serious_incidents}</strong> | 
+            Fatal: <strong>${data.fatal_incidents}</strong>
+          </div>
+          <div style="font-size: 10px; color: var(--yellow); margin-bottom: 8px; font-weight: 500;">Key Insights:</div>`;
+        
+        data.summary_insights.forEach(insight => {
+          html += `<div style="margin-bottom: 6px; padding: 6px; background: rgba(255,209,102,0.1); border-left: 2px solid var(--yellow); border-radius: 3px; font-size: 10px;">💡 ${insight}</div>`;
+        });
+        
+        html += '<div style="font-size: 10px; color: var(--orange); margin-top: 10px; font-weight: 500; margin-bottom: 6px;">Top Hotspots:</div>';
+        
+        data.hotspots.slice(0, 3).forEach((spot, idx) => {
+          html += `<div style="margin-bottom: 8px; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+            <div style="font-weight: 600; color: var(--text);">🔴 #${spot.rank} ${spot.segment_id} - ${spot.road_name}</div>
+            <div style="font-size: 9px; color: var(--muted); margin: 2px 0;">Crashes: ${spot.total_crashes} | Serious: ${spot.serious_injuries} | Fatal: ${spot.fatal_crashes}</div>
+            <div style="font-size: 9px; color: var(--accent-2); margin: 2px 0;">Peak: ${spot.peak_hours}</div>
+            <div style="font-size: 9px; color: var(--yellow); margin-top: 3px;">Actions: ${spot.recommended_interventions.slice(0,2).join(', ')}</div>
+          </div>`;
+        });
+        
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    // 4. Alert & Notification Service
+    async function subscribeAlerts() {
+      const location = document.getElementById('alert-location').value;
+      const radius = document.getElementById('alert-radius').value;
+      const threshold = document.getElementById('alert-threshold').value;
+      const resultDiv = document.getElementById('alerts-result');
+      
+      if (!location || !radius) {
+        resultDiv.innerHTML = '<div style="color: var(--red);">❌ Location and radius required</div>';
+        return;
+      }
+      
+      resultDiv.innerHTML = '⏳ Subscribing to alerts...';
+      
+      try {
+        const res = await fetch('/api/v2/alerts/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            center_location: location,
+            rule: {
+              rule_name: `${location} Risk Alert`,
+              radius_km: parseInt(radius),
+              risk_threshold: threshold,
+              notification_channel: 'in-app',
+              time_window_min: 30
+            }
+          })
+        });
+        
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        
+        // Also fetch a sample alert
+        const sampleRes = await fetch('/api/v2/alerts/sample');
+        const sample = sampleRes.ok ? await sampleRes.json() : null;
+        
+        let html = `<div style="padding: 10px; background: rgba(92,225,169,0.1); border-radius: 6px; border: 1px solid var(--green);">
+          <div style="color: var(--green); font-weight: 600; margin-bottom: 8px;">✅ Subscription Created</div>
+          <div style="font-size: 10px; color: var(--text); margin-bottom: 6px;">
+            <strong>ID:</strong> ${data.subscription_id}<br/>
+            <strong>Rule:</strong> ${data.rule_name}<br/>
+            <strong>Status:</strong> ${data.status}
+          </div>
+          <div style="font-size: 10px; color: var(--muted); margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+            ${data.message}
+          </div>`;
+        
+        if (sample) {
+          html += `<div style="margin-top: 10px; padding: 8px; background: rgba(255,95,109,0.1); border-left: 3px solid var(--red); border-radius: 4px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--red); margin-bottom: 6px;">📢 Sample Alert:</div>
+            <div style="font-size: 10px; color: var(--text); margin: 4px 0;">
+              <strong>${sample.segment_id}</strong> - ${sample.risk_level}
+            </div>
+            <div style="font-size: 10px; color: var(--muted); margin: 4px 0;">${sample.explanation}</div>
+            <div style="font-size: 10px; color: var(--accent-2); margin-top: 6px; font-weight: 500;">Action: ${sample.suggested_action}</div>
+          </div>`;
+        }
+        
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    // Global Overview (Country Indicators - Demo)
+    async function loadGlobalIndicators() {
+      const country = document.getElementById('global-country').value;
+      const resultDiv = document.getElementById('global-indicators-result');
+      resultDiv.innerHTML = '⏳ Loading country indicators...';
+
+      try {
+        const url = country ? `/api/v2/global/indicators?country=${encodeURIComponent(country)}` : '/api/v2/global/indicators';
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+
+        if (!data.countries || data.countries.length === 0) {
+          resultDiv.innerHTML = '<div style="color: var(--muted);">No data available for this selection.</div>';
+          return;
+        }
+
+        let html = `<div style="font-size: 10px; color: var(--muted); margin-bottom: 8px;">Demo placeholders. Replace with live WHO/observatory feeds.</div>`;
+
+        data.countries.forEach(c => {
+          html += `<div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--text);">
+              <span>${c.country_name} (${c.country_code})</span>
+              <span style="font-size: 10px; color: var(--muted);">Year: ${c.data_year || '—'}</span>
+            </div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">
+              Deaths per 100k: ${c.deaths_per_100k !== null ? c.deaths_per_100k : 'N/A (demo)'}<br/>
+              Helmet law: ${c.helmet_law === null ? 'N/A' : c.helmet_law ? 'Yes' : 'No'}<br/>
+              Seatbelt law: ${c.seatbelt_law === null ? 'N/A' : c.seatbelt_law ? 'Yes' : 'No'}
+            </div>
+            <div style="font-size: 10px; color: var(--accent-2); margin-top: 6px;">${c.note || 'Demo placeholder values.'}</div>
+          </div>`;
+        });
+
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    // Global Traffic Rules (Country/State)
+    async function loadTrafficRules() {
+      const country = document.getElementById('global-country').value;
+      const state = document.getElementById('global-state').value;
+      const resultDiv = document.getElementById('traffic-rules-result');
+      resultDiv.innerHTML = '⏳ Loading traffic rules...';
+
+      try {
+        let url = '/api/v2/global/traffic-rules';
+        const params = [];
+        if (country) params.push(`country=${encodeURIComponent(country)}`);
+        if (state) params.push(`state=${encodeURIComponent(state)}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+
+        if (!data.countries || data.countries.length === 0) {
+          resultDiv.innerHTML = '<div style="color: var(--muted);">No rules available for this selection.</div>';
+          return;
+        }
+
+        let html = `<div style="font-size: 10px; color: var(--muted); margin-bottom: 8px;">Static snapshot. Replace with live gov/observatory feeds when available.</div>`;
+
+        data.countries.forEach(c => {
+          html += `<div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--text);">
+              <span>${c.country_name} (${c.country_code})</span>
+              <span style="font-size: 10px; color: var(--muted);">Year: ${c.data_year || '—'}</span>
+            </div>
+            <div style="font-size: 10px; color: var(--accent-2); margin-top: 4px;">${c.note || ''}</div>
+            <div style="margin-top: 6px;">
+              ${(c.rules || []).map(r => `<div style="margin-bottom: 6px; padding: 6px; background: rgba(255,255,255,0.04); border-radius: 4px; border-left: 2px solid var(--accent);">
+                <div style="font-weight: 600; color: var(--text); font-size: 11px;">${r.title}</div>
+                <div style="font-size: 10px; color: var(--muted);">${r.description}</div>
+                ${r.penalty ? `<div style=\"font-size: 10px; color: var(--yellow); margin-top: 2px;\">Penalty: ${r.penalty}</div>` : ''}
+              </div>`).join('')}
+            </div>`;
+
+          if (c.states && c.states.length) {
+            html += `<div style="margin-top: 8px; font-weight: 600; font-size: 11px; color: var(--text);">State/Province:</div>`;
+            c.states.forEach(s => {
+              html += `<div style="margin-top: 4px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px dashed var(--border);">
+                <div style="font-weight: 600; color: var(--accent-2); font-size: 11px;">${s.state_name}</div>
+                ${(s.rules || []).map(r => `<div style="margin-top: 4px; padding: 6px; background: rgba(255,255,255,0.04); border-radius: 4px;">
+                  <div style="font-weight: 600; color: var(--text); font-size: 11px;">${r.title}</div>
+                  <div style="font-size: 10px; color: var(--muted);">${r.description}</div>
+                  ${r.penalty ? `<div style=\"font-size: 10px; color: var(--yellow); margin-top: 2px;\">Penalty: ${r.penalty}</div>` : ''}
+                </div>`).join('')}
+              </div>`;
+            });
+          }
+
+          html += `</div>`;
+        });
+
+        resultDiv.innerHTML = html;
+      } catch (e) {
+        resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    // Load state/province options for selected country
+    async function loadStateOptions() {
+      const country = document.getElementById('global-country').value;
+      const stateSelect = document.getElementById('global-state');
+      stateSelect.innerHTML = '<option value="">All states/provinces</option>';
+      if (!country) return;
+
+      try {
+        const res = await fetch(`/api/v2/global/traffic-rules/states?country=${encodeURIComponent(country)}`);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        if (!data.countries || data.countries.length === 0) return;
+        const states = data.countries[0].states || [];
+        const options = states.map(s => `<option value="${s.code}">${s.name}</option>`).join('');
+        stateSelect.innerHTML = '<option value="">All states/provinces</option>' + options;
+      } catch (e) {
+        console.error('State load error:', e);
+      }
+    }
+  </script>
+</body>
+</html>
