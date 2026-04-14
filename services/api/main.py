@@ -21,6 +21,17 @@ app.include_router(advanced.router, tags=["advanced"])
 app.mount("/ui", StaticFiles(directory="services/api/static", html=True), name="ui")
 
 
+@app.get("/", tags=["root"])
+def root() -> dict:
+    return {
+        "name": "Road Accident Risk and Severity API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+        "ui": "/ui",
+    }
+
+
 @app.get("/health", tags=["health"])
 def health() -> dict:
     return {"status": "ok"}
