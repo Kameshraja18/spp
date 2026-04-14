@@ -262,6 +262,83 @@
     }
     .action-item strong { color: var(--text); display: block; margin-bottom: 2px; }
 
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .sim-field {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .sim-field label {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      font-weight: 600;
+    }
+    .sim-field input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-2);
+    }
+    .sim-field .sim-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: right;
+      margin-top: 4px;
+    }
+    .sim-interventions {
+      margin-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .sim-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      font-size: 11px;
+      color: var(--text);
+    }
+    .sim-check input { accent-color: var(--accent); }
+    .sim-kpi {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .sim-kpi-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+    .sim-kpi-card .label { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+    .sim-kpi-card .value { color: var(--text); font-size: 16px; font-weight: 700; margin-top: 2px; }
+    .traj-line {
+      margin-top: 10px;
+      font-family: monospace;
+      font-size: 10px;
+      line-height: 1.5;
+      color: var(--muted);
+      white-space: pre-wrap;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
     @media (max-width: 1200px) {
       .container { grid-template-columns: 1fr; }
       .audience-content { max-height: 400px; }
@@ -395,6 +472,7 @@
         <div class="audience-tab" onclick="switchAudience('routes', event)">🛣️ Routes</div>
         <div class="audience-tab" onclick="switchAudience('reports', event)">📋 Reports</div>
         <div class="audience-tab" onclick="switchAudience('alerts', event)">🔔 Alerts</div>
+        <div class="audience-tab" onclick="switchAudience('simulator', event)">🧪 Simulator</div>
       </div>
 
       <!-- Police Panel -->
@@ -664,6 +742,49 @@
         </div>
         <div id="alerts-result" style="font-size: 11px; color: var(--muted); line-height: 1.6; max-height: 300px; overflow-y: auto;"></div>
       </div>
+
+      <div class="audience-content" id="simulator-panel" style="display: none;">
+        <h3>🧪 What-If Intervention Simulator</h3>
+        <p>Model expected risk change for one segment under selected control actions.</p>
+
+        <input type="text" id="sim-segment" placeholder="Segment ID (e.g., S42)" style="width: 100%; padding: 7px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px; margin-top: 8px;">
+
+        <div class="sim-grid">
+          <div class="sim-field">
+            <label>Baseline Risk</label>
+            <input id="sim-baseline" type="range" min="0" max="1" step="0.01" value="0.72" oninput="document.getElementById('sim-baseline-val').textContent=(this.value*100).toFixed(0)+'%'">
+            <div class="sim-value" id="sim-baseline-val">72%</div>
+          </div>
+          <div class="sim-field">
+            <label>Weather Severity</label>
+            <input id="sim-weather" type="range" min="0" max="1" step="0.01" value="0.70" oninput="document.getElementById('sim-weather-val').textContent=(this.value*100).toFixed(0)+'%'">
+            <div class="sim-value" id="sim-weather-val">70%</div>
+          </div>
+          <div class="sim-field">
+            <label>Congestion Index</label>
+            <input id="sim-congestion" type="range" min="0" max="1" step="0.01" value="0.65" oninput="document.getElementById('sim-congestion-val').textContent=(this.value*100).toFixed(0)+'%'">
+            <div class="sim-value" id="sim-congestion-val">65%</div>
+          </div>
+          <div class="sim-field">
+            <label>Visibility Score</label>
+            <input id="sim-visibility" type="range" min="0" max="1" step="0.01" value="0.45" oninput="document.getElementById('sim-visibility-val').textContent=(this.value*100).toFixed(0)+'%'">
+            <div class="sim-value" id="sim-visibility-val">45%</div>
+          </div>
+        </div>
+
+        <div class="sim-interventions">
+          <label class="sim-check"><input type="checkbox" class="sim-intv" value="increase_patrols" checked>Increase patrols</label>
+          <label class="sim-check"><input type="checkbox" class="sim-intv" value="dynamic_speed_limit" checked>Dynamic speed limit</label>
+          <label class="sim-check"><input type="checkbox" class="sim-intv" value="improve_lighting">Improve lighting</label>
+          <label class="sim-check"><input type="checkbox" class="sim-intv" value="drainage_maintenance">Drainage maintenance</label>
+          <label class="sim-check"><input type="checkbox" class="sim-intv" value="signal_retiming">Signal retiming</label>
+          <label class="sim-check"><input type="checkbox" class="sim-intv" value="public_alert_push">Public alert push</label>
+        </div>
+
+        <button onclick="runInterventionSimulation()" style="width: 100%; margin-top: 10px; padding: 8px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #041023; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 11px;">Run Simulation</button>
+
+        <div id="sim-result" style="margin-top: 10px; font-size: 11px; color: var(--muted);">Configure scenario and run simulation.</div>
+      </div>
     </div>
   </div>
 
@@ -731,7 +852,8 @@
         hotspots: 'hotspots-panel',
         routes: 'routes-panel',
         reports: 'reports-panel',
-        alerts: 'alerts-panel'
+        alerts: 'alerts-panel',
+        simulator: 'simulator-panel'
       };
 
       const panelId = panelMap[audience] || 'police-panel';
@@ -1382,6 +1504,66 @@
         resultDiv.innerHTML = html;
       } catch (e) {
         resultDiv.innerHTML = `<div style="color: var(--red);">❌ Error: ${e.message}</div>`;
+      }
+    }
+
+    async function runInterventionSimulation() {
+      const segmentId = (document.getElementById('sim-segment').value || '').trim() || 'S42';
+      const baseline = parseFloat(document.getElementById('sim-baseline').value || '0.72');
+      const weather = parseFloat(document.getElementById('sim-weather').value || '0.70');
+      const congestion = parseFloat(document.getElementById('sim-congestion').value || '0.65');
+      const visibility = parseFloat(document.getElementById('sim-visibility').value || '0.45');
+      const interventions = Array.from(document.querySelectorAll('.sim-intv:checked')).map((node) => node.value);
+      const resultDiv = document.getElementById('sim-result');
+
+      if (!segmentId) {
+        resultDiv.innerHTML = '<span style="color: var(--red);">Segment ID is required.</span>';
+        return;
+      }
+
+      resultDiv.innerHTML = '⏳ Running intervention simulation...';
+
+      try {
+        const res = await fetch('/api/v2/simulate/intervention', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            segment_id: segmentId,
+            baseline_risk: baseline,
+            weather_severity: weather,
+            congestion_index: congestion,
+            visibility_score: visibility,
+            interventions,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+
+        const deltaColor = data.risk_delta < 0 ? 'var(--green)' : 'var(--red)';
+        const trajectoryText = (data.trajectory || [])
+          .map((p) => `${String(p.minute_offset).padStart(2, '0')}m | ${'█'.repeat(Math.max(1, Math.round(p.risk_score * 12)))} ${(p.risk_score * 100).toFixed(0)}%`)
+          .join('\n');
+        const factors = (data.dominant_factors || []).map((f) => `<span class="risk-badge MEDIUM" style="margin-right:4px;">${f.replaceAll('_', ' ')}</span>`).join('');
+        const effects = (data.effects || [])
+          .map((e) => `<div class="action-item" style="margin-bottom:6px;"><strong>${e.intervention.replaceAll('_', ' ')}</strong>Risk reduction: ${(e.risk_reduction * 100).toFixed(1)}%<br>${e.note}</div>`)
+          .join('');
+
+        resultDiv.innerHTML = `
+          <div class="sim-kpi">
+            <div class="sim-kpi-card"><div class="label">Baseline</div><div class="value">${(data.baseline_risk * 100).toFixed(0)}%</div></div>
+            <div class="sim-kpi-card"><div class="label">Adjusted</div><div class="value">${(data.adjusted_risk * 100).toFixed(0)}%</div></div>
+            <div class="sim-kpi-card"><div class="label">Delta</div><div class="value" style="color:${deltaColor};">${(data.risk_delta * 100).toFixed(1)}%</div></div>
+          </div>
+          <div style="margin-top:8px; font-size:11px; color:var(--text);">Expected incident reduction: <strong>${data.expected_incident_reduction_pct.toFixed(1)}%</strong></div>
+          <div style="margin-top:4px; font-size:10px; color:var(--muted);">Confidence band: ${(data.confidence_lower * 100).toFixed(0)}% - ${(data.confidence_upper * 100).toFixed(0)}%</div>
+          <div style="margin-top:8px;">${factors}</div>
+          <div class="traj-line">${trajectoryText}</div>
+          <div style="margin-top:8px; font-size:11px; color:var(--accent-2);"><strong>Recommendation:</strong> ${data.recommendation}</div>
+          <div style="margin-top:8px;">${effects || '<div class="action-item">No interventions selected.</div>'}</div>
+        `;
+      } catch (e) {
+        resultDiv.innerHTML = `<span style="color: var(--red);">Simulation failed: ${e.message}</span>`;
       }
     }
 

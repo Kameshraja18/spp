@@ -1430,6 +1430,141 @@ async def evaluate_route_safety(request: RouteSafetyRequest):
     )
 
 
+# ============== 2B. WHAT-IF INTERVENTION SIMULATOR ==============
+
+
+class InterventionEffect(BaseModel):
+    """Impact estimate for one intervention."""
+    intervention: str
+    risk_reduction: float = Field(ge=0.0, le=0.5)
+    note: str
+
+
+class RiskTrajectoryPoint(BaseModel):
+    """Projected risk at a time offset."""
+    minute_offset: int = Field(ge=0)
+    risk_score: float = Field(ge=0.0, le=1.0)
+
+
+class InterventionSimulationRequest(BaseModel):
+    """Request for what-if risk intervention simulation."""
+    segment_id: str
+    baseline_risk: float = Field(..., ge=0.0, le=1.0)
+    weather_severity: float = Field(0.4, ge=0.0, le=1.0)
+    congestion_index: float = Field(0.5, ge=0.0, le=1.0)
+    visibility_score: float = Field(0.7, ge=0.0, le=1.0)
+    interventions: List[
+        Literal[
+            "increase_patrols",
+            "dynamic_speed_limit",
+            "improve_lighting",
+            "drainage_maintenance",
+            "signal_retiming",
+            "public_alert_push",
+        ]
+    ] = Field(default_factory=list)
+
+
+class InterventionSimulationResponse(BaseModel):
+    """Simulation result showing risk shift and action impact."""
+    segment_id: str
+    baseline_risk: float = Field(ge=0.0, le=1.0)
+    adjusted_risk: float = Field(ge=0.0, le=1.0)
+    risk_delta: float
+    expected_incident_reduction_pct: float = Field(ge=0.0, le=100.0)
+    confidence_lower: float = Field(ge=0.0, le=1.0)
+    confidence_upper: float = Field(ge=0.0, le=1.0)
+    dominant_factors: List[str]
+    effects: List[InterventionEffect]
+    trajectory: List[RiskTrajectoryPoint]
+    recommendation: str
+
+
+@router.post("/simulate/intervention", response_model=InterventionSimulationResponse)
+async def simulate_intervention(request: InterventionSimulationRequest):
+    """Run a deterministic what-if intervention simulation for one segment."""
+    base_pressure = (
+        request.baseline_risk * 0.45
+        + request.weather_severity * 0.25
+        + request.congestion_index * 0.20
+        + (1.0 - request.visibility_score) * 0.10
+    )
+
+    intervention_map = {
+        "increase_patrols": (0.05, "Improves compliance and shortens emergency response time."),
+        "dynamic_speed_limit": (0.08, "Reduces kinetic impact and dangerous overtaking."),
+        "improve_lighting": (0.06, "Improves sight distance and hazard detection at night."),
+        "drainage_maintenance": (0.07, "Lowers hydroplaning and skid risk in wet conditions."),
+        "signal_retiming": (0.06, "Reduces conflict at intersections and queue spillback."),
+        "public_alert_push": (0.04, "Warns drivers early and lowers abrupt maneuvers."),
+    }
+
+    effects: List[InterventionEffect] = []
+    total_reduction = 0.0
+    for item in request.interventions:
+        reduction, note = intervention_map[item]
+        adjusted = reduction
+        if item == "drainage_maintenance" and request.weather_severity >= 0.65:
+            adjusted += 0.02
+        if item == "improve_lighting" and request.visibility_score <= 0.45:
+            adjusted += 0.02
+        effects.append(InterventionEffect(intervention=item, risk_reduction=round(adjusted, 3), note=note))
+        total_reduction += adjusted
+
+    if {
+        "dynamic_speed_limit",
+        "increase_patrols",
+    }.issubset(set(request.interventions)):
+        total_reduction += 0.015
+
+    adjusted_risk = max(0.0, min(1.0, base_pressure - total_reduction))
+    risk_delta = round(adjusted_risk - request.baseline_risk, 4)
+    reduction_pct = (request.baseline_risk - adjusted_risk) / max(request.baseline_risk, 0.05) * 100.0
+    reduction_pct = max(0.0, round(reduction_pct, 2))
+
+    spread = 0.04 + (0.03 if len(request.interventions) == 0 else 0.0)
+    confidence_lower = max(0.0, round(adjusted_risk - spread, 3))
+    confidence_upper = min(1.0, round(adjusted_risk + spread, 3))
+
+    trajectory = []
+    for minute in (0, 15, 30, 45, 60):
+        glide = adjusted_risk + (request.baseline_risk - adjusted_risk) * np.exp(-minute / 28)
+        trajectory.append(RiskTrajectoryPoint(minute_offset=minute, risk_score=round(min(1.0, glide), 3)))
+
+    factors = []
+    if request.weather_severity >= 0.6:
+        factors.append("adverse_weather")
+    if request.congestion_index >= 0.6:
+        factors.append("heavy_congestion")
+    if request.visibility_score <= 0.5:
+        factors.append("low_visibility")
+    if not factors:
+        factors.append("baseline_behavioral_risk")
+
+    if adjusted_risk >= 0.75:
+        recommendation = "Escalate immediately: deploy enforcement + dispatch standby + live warning signs."
+    elif adjusted_risk >= 0.6:
+        recommendation = "Maintain active controls and monitor every 15 minutes for surge conditions."
+    elif adjusted_risk >= 0.45:
+        recommendation = "Sustain preventive controls and monitor peak windows."
+    else:
+        recommendation = "Risk improved to low band; continue baseline monitoring and periodic patrol."
+
+    return InterventionSimulationResponse(
+        segment_id=request.segment_id,
+        baseline_risk=round(request.baseline_risk, 3),
+        adjusted_risk=round(adjusted_risk, 3),
+        risk_delta=risk_delta,
+        expected_incident_reduction_pct=reduction_pct,
+        confidence_lower=confidence_lower,
+        confidence_upper=confidence_upper,
+        dominant_factors=factors,
+        effects=effects,
+        trajectory=trajectory,
+        recommendation=recommendation,
+    )
+
+
 # ============== 3. MONTHLY HOTSPOT & POLICY REPORT SERVICE ==============
 
 class HotspotEntry(BaseModel):

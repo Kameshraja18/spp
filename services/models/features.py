@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
-import torch
 from pydantic import BaseModel
+
+try:
+    import torch  # type: ignore
+except Exception:  # pragma: no cover - environment-specific optional dependency
+    torch = None
 
 from services.api.schemas import RiskSequencePoint, SeverityPredictionRequest
 
@@ -28,9 +32,11 @@ def _one_hot(value: str, namespace: str) -> List[float]:
     return vec
 
 
-def sequence_to_tensor(sequence: Sequence[RiskSequencePoint]) -> torch.Tensor:
+def sequence_to_tensor(sequence: Sequence[RiskSequencePoint]) -> Any:
     if not sequence:
         raise ValueError("recent_sequence is required for risk prediction")
+    if torch is None:
+        raise RuntimeError("PyTorch is not available in this environment")
     rows: List[List[float]] = []
     for point in sequence:
         rows.append(
