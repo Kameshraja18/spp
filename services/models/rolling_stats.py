@@ -93,6 +93,7 @@ class RollingStats:
             **speed_stats,
             **cong_stats,
             **flow_stats,
+            "rolling_avg_speed": float(np.mean(speed_arr)),
             "acceleration": acceleration,
             "volatility": volatility,
         }

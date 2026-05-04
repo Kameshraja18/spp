@@ -1,7 +1,25 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+import numpy as np
+from pydantic import BaseModel, Field, field_validator
+
+
+def _to_python_datetime(value):
+    """Convert str/np.datetime64/datetime to python datetime."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, np.datetime64):
+        # Convert numpy.datetime64 to seconds since epoch then to datetime
+        ts = (value - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
+        return datetime.utcfromtimestamp(float(ts))
+    if isinstance(value, str):
+        # Support both 'YYYY-MM-DD HH:MM:SS' and ISO strings
+        try:
+            return datetime.fromisoformat(value.replace(" ", "T") if " " in value else value)
+        except Exception:
+            return datetime.fromisoformat(value)
+    return value
 
 
 class TrafficRecord(BaseModel):
@@ -11,6 +29,10 @@ class TrafficRecord(BaseModel):
     flow: float
     occupancy: float
     congestion_index: float
+
+    @field_validator('timestamp', mode='before')
+    def _validate_timestamp(cls, v):
+        return _to_python_datetime(v)
 
 
 class IngestRequest(BaseModel):
@@ -24,6 +46,10 @@ class RiskSequencePoint(BaseModel):
     occupancy: float
     congestion_index: float
     rain_intensity: float
+
+    @field_validator('timestamp', mode='before')
+    def _validate_timestamp(cls, v):
+        return _to_python_datetime(v)
 
 
 class RiskPredictionRequest(BaseModel):
@@ -49,6 +75,10 @@ class SeverityPredictionRequest(BaseModel):
     congestion_index_current: float
     lstm_risk_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     historical_accident_rate_segment: Optional[float] = Field(default=None, ge=0.0)
+
+    @field_validator('timestamp', mode='before')
+    def _validate_timestamp(cls, v):
+        return _to_python_datetime(v)
 
 
 class SeverityProbabilities(BaseModel):

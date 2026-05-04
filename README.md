@@ -47,9 +47,18 @@ Environment variables:
 ## Quickstart (dev)
 1) Install deps: `python -m venv .venv && .venv/Scripts/activate && pip install -r requirements.txt`
 2) Copy `.env.example` to `.env` and adjust paths/hosts as needed (docker-compose uses defaults).
-3) Run API locally: `uvicorn services.api.main:app --reload`
+3) Run API locally over HTTP: `uvicorn services.api.main:app --reload`
+	- For VS Code port forwarding (dev tunnels) use a server bound to all interfaces so the tunnel can reach it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev_http_bind_all.ps1
+```
+
+	- Or run HTTPS locally (self-signed) for direct local browsing: `powershell -ExecutionPolicy Bypass -File scripts/dev_https.ps1`
 4) Bring infra + API via Docker: `docker-compose up --build`
 5) Open docs: http://localhost:8000/docs
+
+Local dev runs over HTTP by default. The HTTPS helper generates a self-signed localhost cert in `.certs/` and starts Uvicorn with TLS, which is useful for secure forwarded ports.
 
 ## Next steps
 - Enhance feature builder: join weather feed, add richer rolling stats (min/max/variance, deltas), and optional graph context.

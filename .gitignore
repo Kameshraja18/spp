@@ -15,6 +15,9 @@ env/
 # Local environment files
 .env
 
+# Local HTTPS development certificates
+.certs/
+
 # Runtime logs
 *.log
 

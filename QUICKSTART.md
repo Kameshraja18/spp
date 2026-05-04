@@ -13,6 +13,14 @@ uvicorn services.api.main:app --reload
 
 Access at: **http://localhost:8000/docs** (Swagger UI)
 
+For VS Code port forwarding (dev tunnels) prefer running the server bound to all interfaces (HTTP) so the tunnel can terminate HTTPS for you:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev_http_bind_all.ps1
+```
+
+Then open the forwarded tunnel URL (for example, `https://6sfln3vn-8000.inc1.devtunnels.ms/`). The tunnel will provide a valid TLS certificate for the public URL while forwarding traffic to your local HTTP server.
+
 ---
 
 ## 2️⃣ Start the Full Stack (Production + Monitoring)

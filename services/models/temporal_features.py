@@ -2,9 +2,10 @@
 
 from datetime import datetime
 import numpy as np
+from typing import Union
 
 
-def extract_temporal_features(timestamp_str: str) -> dict:
+def extract_temporal_features(timestamp_str: Union[str, datetime, np.datetime64]) -> dict:
     """Extract temporal features from ISO datetime string.
     
     Args:
@@ -22,8 +23,18 @@ def extract_temporal_features(timestamp_str: str) -> dict:
         - day_sin/cos: cyclic encoding of day
         - time_to_peak: minutes until next peak hour
     """
-    dt = datetime.fromisoformat(timestamp_str.replace(" ", "T") if " " in timestamp_str else timestamp_str)
-    
+    # Accept multiple input types: str, datetime, numpy.datetime64
+    if isinstance(timestamp_str, datetime):
+        dt = timestamp_str
+    elif isinstance(timestamp_str, np.datetime64):
+        ts = (timestamp_str - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
+        dt = datetime.utcfromtimestamp(float(ts))
+    elif isinstance(timestamp_str, str):
+        dt = datetime.fromisoformat(timestamp_str.replace(" ", "T") if " " in timestamp_str else timestamp_str)
+    else:
+        # Fallback: try to coerce to string then parse
+        dt = datetime.fromisoformat(str(timestamp_str))
+
     hour = dt.hour
     day_of_week = dt.weekday()  # 0=Monday, 6=Sunday
     day_of_month = dt.day
@@ -84,14 +95,23 @@ def _minutes_to_next_peak(hour: int, minute: int, peak_hours: list) -> int:
     return 24 * 60 - current_minutes + peak_hours[0] * 60
 
 
-def get_seasonal_risk_factor(timestamp_str: str) -> float:
+def get_seasonal_risk_factor(timestamp_str: Union[str, datetime, np.datetime64]) -> float:
     """Compute seasonal risk multiplier.
     
     Returns value in [1.0, 1.5] where:
     - 1.0 = safe season (summer, clear weather typical)
     - 1.5 = high-risk season (winter, snow/ice likely)
     """
-    dt = datetime.fromisoformat(timestamp_str.replace(" ", "T") if " " in timestamp_str else timestamp_str)
+    # Accept multiple input types
+    if isinstance(timestamp_str, datetime):
+        dt = timestamp_str
+    elif isinstance(timestamp_str, np.datetime64):
+        ts = (timestamp_str - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
+        dt = datetime.utcfromtimestamp(float(ts))
+    elif isinstance(timestamp_str, str):
+        dt = datetime.fromisoformat(timestamp_str.replace(" ", "T") if " " in timestamp_str else timestamp_str)
+    else:
+        dt = datetime.fromisoformat(str(timestamp_str))
     month = dt.month
     
     # Winter months (Dec, Jan, Feb) = higher risk

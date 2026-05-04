@@ -47,6 +47,114 @@
     .freshness-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
+    .auth-panel {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(13,18,36,0.96), rgba(11,16,31,0.96));
+      border: 1px solid rgba(127,196,255,0.16);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+    .auth-panel h2 { margin: 0 0 6px 0; }
+    .auth-subtitle { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .auth-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .auth-input {
+      width: 100%;
+      padding: 10px 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+    }
+    .auth-input:focus { border-color: var(--accent-2); box-shadow: 0 0 0 2px rgba(127,196,255,0.12); }
+    .auth-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .auth-btn {
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .auth-btn:hover { transform: translateY(-1px); }
+    .auth-btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #041023; }
+    .auth-btn.secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border); }
+    .auth-btn.danger { background: rgba(255,95,109,0.14); color: var(--red); border: 1px solid rgba(255,95,109,0.3); }
+    .auth-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .auth-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      width: fit-content;
+    }
+    .auth-status-badge.logged-out { background: rgba(255,159,67,0.15); color: var(--orange); }
+    .auth-status-badge.logged-in { background: rgba(92,225,169,0.15); color: var(--green); }
+    .auth-token {
+      font-size: 10px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+    .auth-message {
+      font-size: 11px;
+      line-height: 1.45;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      min-height: 34px;
+    }
+    .auth-message.info { background: rgba(127,196,255,0.08); border-color: rgba(127,196,255,0.2); color: var(--accent-2); }
+    .auth-message.success { background: rgba(92,225,169,0.08); border-color: rgba(92,225,169,0.2); color: var(--green); }
+    .auth-message.error { background: rgba(255,95,109,0.08); border-color: rgba(255,95,109,0.2); color: var(--red); }
+    .auth-required-banner {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,159,67,0.35);
+      background: rgba(255,159,67,0.1);
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    body.auth-locked .main-app,
+    body.auth-locked footer {
+      display: none;
+    }
+
     .container {
       display: grid;
       grid-template-columns: 1.3fr 1fr;
@@ -363,9 +471,35 @@
       <span class="freshness-dot"></span>
       <span>Models updated: <strong id="model-updated">2026-01-05 22:30</strong> • Data latency: <strong>~5 min</strong></span>
     </div>
+    <div class="auth-panel">
+      <div>
+        <h2 style="font-size: 16px;">Secure Sign In</h2>
+        <p class="auth-subtitle">Create a local account, log in, and keep your session token in this browser for authenticated actions.</p>
+        <div class="auth-grid">
+          <input id="auth-username" class="auth-input" type="text" placeholder="Username" autocomplete="username" />
+          <input id="auth-password" class="auth-input" type="password" placeholder="Password" autocomplete="current-password" />
+        </div>
+        <div class="auth-actions">
+          <button class="auth-btn primary" onclick="signupUser()">Create account</button>
+          <button class="auth-btn secondary" onclick="loginUser()">Log in</button>
+          <button class="auth-btn secondary" onclick="loadProfile()">Refresh profile</button>
+          <button class="auth-btn danger" onclick="logoutUser()">Log out</button>
+        </div>
+      </div>
+      <div class="auth-card">
+        <div id="auth-status" class="auth-status-badge logged-out">Signed out</div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Current user</div>
+          <div id="auth-profile" style="font-size: 14px; font-weight: 700;">Guest</div>
+        </div>
+        <div class="auth-token" id="auth-token">No token stored yet.</div>
+        <div id="auth-message" class="auth-message info">Use the form to create an account or sign in.</div>
+      </div>
+    </div>
+    <div id="auth-required-banner" class="auth-required-banner">Login required: the main dashboard is locked until you sign in.</div>
   </header>
 
-  <div class="container">
+  <div class="container main-app" id="main-app">
     <!-- LEFT COLUMN: Map + KPIs + Top Segments -->
     <div>
       <!-- KPI Summary Cards -->
@@ -814,7 +948,159 @@
   </style>
   <script>
     const colors = { red: '#ff5f6d', orange: '#ff9f43', yellow: '#ffd166', green: '#5ce1a9' };
+    const AUTH_TOKEN_KEY = 'sppAuthToken';
     let map, markers = [], allSegments = [];
+    let isAuthenticated = false;
+
+    function setAppLockState(locked) {
+      document.body.classList.toggle('auth-locked', locked);
+      const banner = document.getElementById('auth-required-banner');
+      if (banner) {
+        banner.style.display = locked ? 'block' : 'none';
+      }
+    }
+
+    function getAuthToken() {
+      try {
+        return localStorage.getItem(AUTH_TOKEN_KEY) || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setAuthToken(token) {
+      try {
+        if (token) {
+          localStorage.setItem(AUTH_TOKEN_KEY, token);
+        } else {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
+      } catch (e) {
+        // Ignore storage failures in restricted browsers.
+      }
+      syncAuthState();
+    }
+
+    function setAuthMessage(message, kind = 'info') {
+      const el = document.getElementById('auth-message');
+      if (!el) return;
+      el.className = `auth-message ${kind}`;
+      el.textContent = message;
+    }
+
+    function syncAuthState(profile = null) {
+      const token = getAuthToken();
+      const statusEl = document.getElementById('auth-status');
+      const profileEl = document.getElementById('auth-profile');
+      const tokenEl = document.getElementById('auth-token');
+
+      if (!statusEl || !profileEl || !tokenEl) return;
+
+      if (token) {
+        statusEl.textContent = 'Signed in';
+        statusEl.className = 'auth-status-badge logged-in';
+        tokenEl.textContent = token.length > 48 ? `${token.slice(0, 24)}...${token.slice(-18)}` : token;
+      } else {
+        statusEl.textContent = 'Signed out';
+        statusEl.className = 'auth-status-badge logged-out';
+        tokenEl.textContent = 'No token stored yet.';
+      }
+
+      if (profile && profile.username) {
+        isAuthenticated = true;
+        profileEl.textContent = profile.username;
+      } else if (!token) {
+        isAuthenticated = false;
+        profileEl.textContent = 'Guest';
+      }
+
+      setAppLockState(!isAuthenticated);
+    }
+
+    function authHeaders(extra = {}) {
+      const headers = { ...extra };
+      const token = getAuthToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      return headers;
+    }
+
+    async function submitAuth(endpoint, successLabel) {
+      const username = document.getElementById('auth-username')?.value.trim();
+      const password = document.getElementById('auth-password')?.value || '';
+
+      if (!username || !password) {
+        setAuthMessage('Username and password are required.', 'error');
+        return;
+      }
+
+      setAuthMessage(`${successLabel}...`, 'info');
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+
+        if (data.access_token) {
+          setAuthToken(data.access_token);
+          setAuthMessage(`${successLabel} successful. Session saved in this browser.`, 'success');
+          await loadProfile();
+          return;
+        }
+
+        setAuthMessage(data.message || `${successLabel} successful.`, 'success');
+      } catch (e) {
+        setAuthMessage(`${successLabel} failed: ${e.message}`, 'error');
+      }
+    }
+
+    async function signupUser() {
+      await submitAuth('/auth/signup', 'Account creation');
+    }
+
+    async function loginUser() {
+      await submitAuth('/auth/login', 'Login');
+    }
+
+    async function logoutUser() {
+      try {
+        await fetch('/auth/logout', { method: 'POST' });
+      } catch (e) {
+        // Ignore network errors during logout cleanup.
+      }
+      isAuthenticated = false;
+      setAuthToken('');
+      syncAuthState();
+      setAuthMessage('Signed out. Token removed from this browser.', 'info');
+    }
+
+    async function loadProfile() {
+      const token = getAuthToken();
+      if (!token) {
+        syncAuthState();
+        setAuthMessage('Sign in to load your profile.', 'info');
+        return;
+      }
+
+      try {
+        const res = await fetch('/auth/profile', {
+          headers: authHeaders(),
+        });
+
+        if (!res.ok) throw new Error(`Profile lookup failed (${res.status})`);
+        const data = await res.json();
+        syncAuthState(data);
+        setAuthMessage(`Welcome back, ${data.username}.`, 'success');
+      } catch (e) {
+        isAuthenticated = false;
+        setAuthToken('');
+        setAuthMessage(`Profile check failed: ${e.message}`, 'error');
+      }
+    }
 
     function getRiskLevel(score) {
       if (score >= 0.75) return { label: 'CRITICAL', color: 'red', band: '0.75+' };
@@ -825,7 +1111,7 @@
 
     async function fetchJson(path) {
       try {
-        const res = await fetch(path);
+        const res = await fetch(path, { headers: authHeaders() });
         return res.ok ? await res.json() : {};
       } catch (e) {
         console.error('Fetch error:', e);
@@ -1284,6 +1570,11 @@
 
     async function load() {
       try {
+        syncAuthState();
+        await loadProfile();
+        if (!isAuthenticated) {
+          return;
+        }
         const [crit, monthly] = await Promise.all([
           fetchJson(window.location.origin + '/api/v2/reports/critical-spots'),
           fetchJson(window.location.origin + '/api/v2/reports/hotspots/monthly'),

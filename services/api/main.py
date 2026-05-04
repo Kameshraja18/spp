@@ -1,10 +1,14 @@
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from services.api.routers import ingest, risk, severity, explain, advanced
+from services.api.routers import auth as auth_router
+from services.api.auth import decode_access_token
 from services.storage import db
+from services.storage import auth as auth_storage
 from services.stream import pipeline
 from services.stream import feature_builder
 from services.monitoring.metrics import REGISTRY
@@ -17,19 +21,39 @@ app.include_router(risk.router, prefix="/predict", tags=["risk"])
 app.include_router(severity.router, prefix="/predict", tags=["severity"])
 app.include_router(explain.router, prefix="/explain", tags=["explain"])
 app.include_router(advanced.router, tags=["advanced"])
+app.include_router(auth_router.router, prefix="/auth", tags=["auth"])
 
-app.mount("/ui", StaticFiles(directory="services/api/static", html=True), name="ui")
+STATIC_DIR = Path("services/api/static")
+UI_PAGE = STATIC_DIR / "index.html"
+LOGIN_PAGE = STATIC_DIR / "login.html"
 
 
 @app.get("/", tags=["root"])
-def root() -> dict:
-    return {
-        "name": "Road Accident Risk and Severity API",
-        "status": "ok",
-        "docs": "/docs",
-        "health": "/health",
-        "ui": "/ui",
-    }
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/ui", status_code=307)
+
+
+@app.get("/login", tags=["auth"])
+def login_page() -> FileResponse:
+    return FileResponse(LOGIN_PAGE)
+
+
+@app.get("/ui", tags=["ui"])
+@app.get("/ui/", tags=["ui"])
+def ui_page(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login", status_code=307)
+
+    try:
+        payload = decode_access_token(token)
+        username = payload.get("sub")
+        if not username or not auth_storage.user_exists(username):
+            return RedirectResponse(url="/login", status_code=307)
+    except Exception:
+        return RedirectResponse(url="/login", status_code=307)
+
+    return FileResponse(UI_PAGE)
 
 
 @app.get("/health", tags=["health"])
